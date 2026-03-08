@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFD Pre-Processing Suite</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text: #f8fafc;
+            --accent: #ef4444;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* Form Elements */
+        .input-group {
+            margin-bottom: 1.2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            gap: 15px;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        input,
+        select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        button.main-calc {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 1rem 0;
+            transition: opacity 0.2s;
+        }
+
+        button.main-calc:hover {
+            opacity: 0.9;
+        }
+
+        /* Results Display */
+        .results {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            font-family: monospace;
+        }
+
+        .copy-btn {
+            background: #334155;
+            border: none;
+            color: #f8fafc;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+        }
+
+        /* Table Styling for Mesh Refinement */
+        .mesh-table-container {
+            margin-top: 1.5rem;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 2px solid #334155;
+            color: #94a3b8;
+        }
+
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #334155;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .unit {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+        .suite-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            margin-top: 0;
+            color: var(--text);
+            letter-spacing: 1px;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1 class="suite-title">FXSK - FluidXpert Swiss Knife (v0.1)</h1>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab(event, 'layers')">Layer Thickness</button>
+            <button class="tab-btn" onclick="openTab(event, 'yplus')">Y+ Calculator</button>
+            <button class="tab-btn" onclick="openTab(event, 'fluid')">Turbulence Calculator</button>
+            <button class="tab-btn" onclick="openTab(event, 'mesh')">Mesh Refinement</button>
+        </div>
+
+        <div id="layers" class="content-section active">
+            <div class="input-group">
+                <label>Total Thickness [m]</label>
+                <input type="number" id="total_t" value="1.0">
+            </div>
+            <div class="input-group">
+                <label>Number of Layers</label>
+                <input type="number" id="num_l" value="10">
+            </div>
+            <div class="input-group">
+                <label>Growth Ratio</label>
+                <input type="number" id="ratio" value="1.2">
+            </div>
+            <button class="main-calc" onclick="calculateLayers()">Calculate Layers</button>
+
+            <div class="results">
+                <div class="result-item">
+                    <span>1st Layer: <b id="res_first">-</b></span>
+                    <button class="copy-btn" onclick="copyText('res_first')">Copy</button>
+                </div>
+                <div class="result-item">
+                    <span>Last Layer: <b id="res_last">-</b></span>
+                    <button class="copy-btn" onclick="copyText('res_last')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="yplus" class="content-section">
+            <div class="input-group">
+                <label>Free Stream Velocity U [m/s]</label>
+                <input type="number" id="yplus_u" value="10">
+            </div>
+            <div class="input-group">
+                <label>Density rho [kg/m³]</label>
+                <input type="number" id="yplus_rho" value="1.225">
+            </div>
+            <div class="input-group">
+                <label>Dynamic Viscosity [kg/(ms), Pas]</label>
+                <input type="number" id="yplus_mu" value="1.789e-5">
+            </div>
+            <div class="input-group">
+                <label>Reference Length L [m]</label>
+                <input type="number" id="yplus_l" value="1.0">
+            </div>
+            <div class="input-group">
+                <label>Desired y+ [-]</label>
+                <input type="number" id="yplus_target" value="1">
+            </div>
+            <button class="main-calc" onclick="calculateYPlus()">Calculate Y+</button>
+
+            <div class="results">
+                <div class="result-item">
+                    <span>Reynolds Number: <b id="res_re">-</b> <span id="res_re_type" class="unit"></span></span>
+                    <button class="copy-btn" onclick="copyText('res_re')">Copy</button>
+                </div>
+                <div class="result-item">
+                    <span>Ext. Flow Δy [m]: <b id="res_dy_ext">-</b></span>
+                    <button class="copy-btn" onclick="copyText('res_dy_ext')">Copy</button>
+                </div>
+                <div class="result-item">
+                    <span>Int. Flow Δy [m]: <b id="res_dy_int">-</b></span>
+                    <button class="copy-btn" onclick="copyText('res_dy_int')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="fluid" class="content-section">
+            <div class="input-group">
+                <label>Fluid Type</label>
+                <select id="fluid_type" onchange="updateDensity()">
+                    <option value="1.025">Air</option>
+                    <option value="1000">Water</option>
+                    <option value="850">Oil</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Density [kg/m³]</label>
+                <input type="number" id="density" value="1.02">
+            </div>
+            <div class="input-group">
+                <label>Dim A [m]</label>
+                <input type="number" id="dim_a" value="0.1">
+            </div>
+            <div class="input-group">
+                <label>Dim B [m]</label>
+                <input type="number" id="dim_b" value="0.1">
+            </div>
+            <div class="input-group">
+                <label>U [m/s]</label>
+                <input type="number" id="u_vel" value="10">
+            </div>
+            <div class="input-group">
+                <label>Intensity (I)</label>
+                <select id="intensity">
+                    <option value="0.01">0.01 (1%)</option>
+                    <option value="0.05">0.05 (5%)</option>
+                    <option value="0.1">0.1 (10%)</option>
+                </select>
+            </div>
+            <button class="main-calc" onclick="calculateFluid()">Calculate Turbulence</button>
+
+            <div class="results">
+                <div class="result-item">
+                    <span>k_init: <b id="res_k">-</b></span>
+                    <button class="copy-btn" onclick="copyText('res_k')">Copy</button>
+                </div>
+                <div class="result-item">
+                    <span>omega_init: <b id="res_omega">-</b></span>
+                    <button class="copy-btn" onclick="copyText('res_omega')">Copy</button>
+                </div>
+                <div class="result-item">
+                    <span>eps_init: <b id="res_eps">-</b></span>
+                    <button class="copy-btn" onclick="copyText('res_eps')">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mesh" class="content-section">
+            <div class="input-group">
+                <label>Base Mesh Size [m]</label>
+                <input type="number" id="baseSize" value="1" step="0.1" oninput="calculateRefinement()">
+            </div>
+
+            <div class="mesh-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Level</th>
+                            <th>Size (m)</th>
+                            <th>Size (mm)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="meshResultsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab Switching Logic
+        function openTab(evt, tabName) {
+            let content = document.getElementsByClassName("content-section");
+            for (let i = 0; i < content.length; i++) content[i].style.display = "none";
+
+            let tabs = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].className = tabs[i].className.replace(" active", "");
+            }
+
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+
+            // If switching to mesh, ensure table is populated
+            if (tabName === 'mesh') calculateRefinement();
+        }
+
+        // Layer Thickness Logic
+        function calculateLayers() {
+            const H = parseFloat(document.getElementById('total_t').value);
+            const n = parseInt(document.getElementById('num_l').value);
+            const r = parseFloat(document.getElementById('ratio').value);
+
+            let firstLayer;
+            if (r === 1) {
+                firstLayer = H / n;
+            } else {
+                firstLayer = H * (1 - r) / (1 - Math.pow(r, n));
+            }
+            const lastLayer = firstLayer * Math.pow(r, n - 1);
+
+            document.getElementById('res_first').innerText = firstLayer.toExponential(3);
+            document.getElementById('res_last').innerText = lastLayer.toExponential(3);
+        }
+
+        // Y+ Calculator Logic
+        function calculateYPlus() {
+            const u = parseFloat(document.getElementById('yplus_u').value);
+            const rho = parseFloat(document.getElementById('yplus_rho').value);
+            const mu = parseFloat(document.getElementById('yplus_mu').value);
+            const L = parseFloat(document.getElementById('yplus_l').value);
+            const targetYplus = parseFloat(document.getElementById('yplus_target').value);
+
+            if (mu === 0 || isNaN(u) || isNaN(rho) || isNaN(mu) || isNaN(L) || isNaN(targetYplus)) return;
+
+            // Reynolds number
+            const Re = (rho * u * L) / mu;
+            let reType = "";
+
+            if (Re < 2300) {
+                reType = "(Laminar)";
+            } else if (Re < 5e5) {
+                reType = "(Transition)";
+            } else {
+                reType = "(Turbulent)";
+            }
+
+            // External flow (Flat Plate) - Schlichting skin-friction correlation Cf = 0.0576 * Re^(-0.2)
+            const cf_ext = 0.0576 * Math.pow(Re, -0.2);
+            const tau_ext = 0.5 * cf_ext * rho * Math.pow(u, 2);
+            const utau_ext = Math.sqrt(tau_ext / rho);
+            const dy_ext = (targetYplus * mu) / (rho * utau_ext);
+
+            // Internal flow (Pipe) - Blasius correlation Cf = f/4 = 0.0791 * Re^(-0.25)
+            const cf_int = 0.0791 * Math.pow(Re, -0.25);
+            const tau_int = 0.5 * cf_int * rho * Math.pow(u, 2);
+            const utau_int = Math.sqrt(tau_int / rho);
+            const dy_int = (targetYplus * mu) / (rho * utau_int);
+
+            document.getElementById('res_re').innerText = Re.toExponential(3);
+            document.getElementById('res_re_type').innerText = reType;
+            document.getElementById('res_dy_ext').innerText = dy_ext.toExponential(3);
+            document.getElementById('res_dy_int').innerText = dy_int.toExponential(3);
+        }
+
+        // Fluid Calculator Logic
+        function updateDensity() {
+            const sel = document.getElementById('fluid_type');
+            document.getElementById('density').value = sel.value;
+        }
+
+        function calculateFluid() {
+            const rho = parseFloat(document.getElementById('density').value);
+            const a = parseFloat(document.getElementById('dim_a').value);
+            const b = parseFloat(document.getElementById('dim_b').value);
+            const u = parseFloat(document.getElementById('u_vel').value);
+            const i = parseFloat(document.getElementById('intensity').value);
+
+            const dh = (a * b) / (a + b) * 2;
+            const l = dh * 0.038;
+            const k = 1.5 * Math.pow(u * i, 2);
+            const eps = 0.09 * Math.pow(k, 1.5) / l;
+            const omega = eps / (k * 0.09);
+
+            document.getElementById('res_k').innerText = k.toExponential(3);
+            document.getElementById('res_omega').innerText = omega.toFixed(2);
+            document.getElementById('res_eps').innerText = eps.toExponential(3);
+        }
+
+        // Mesh Refinement Logic
+        function calculateRefinement() {
+            const baseSize = parseFloat(document.getElementById('baseSize').value);
+            const tbody = document.getElementById('meshResultsBody');
+            tbody.innerHTML = '';
+
+            if (isNaN(baseSize) || baseSize <= 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Enter valid base size.</td></tr>';
+                return;
+            }
+
+            for (let i = 0; i <= 10; i++) {
+                const sizeM = baseSize / Math.pow(2, i);
+                const sizeMm = sizeM * 1000;
+
+                const row = `<tr>
+                <td><strong>L${i}</strong></td>
+                <td>${sizeM.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })} <span class="unit">m</span></td>
+                <td>${sizeMm.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} <span class="unit">mm</span></td>
+            </tr>`;
+                tbody.innerHTML += row;
+            }
+        }
+
+        // Utility
+        function copyText(id) {
+            const text = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text);
+            // Simple visual feedback instead of alert if preferred, but keeping your original alert:
+            alert("Copied: " + text);
+        }
+
+        // Initialization
+        window.onload = () => {
+            calculateRefinement();
+        };
+    </script>
+
+</body>
+
+</html>
